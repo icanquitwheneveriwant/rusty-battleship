@@ -12,6 +12,6 @@ fn main() {
     let user = User::new();
     let coord = user.turn();
 
-    //println!("{:?}", coord);
+    println!("{:?}", coord);
 }
 
