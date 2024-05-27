@@ -1,12 +1,15 @@
 
+use DisplayState::*;
+use crate::game::{SIZE, Player, Coord, Orientation};
+use Orientation::*;
+use std::io::stdin;
+use std::str::FromStr;
+use rand::Rng;
+
 #[derive(Clone, Copy)]
 enum DisplayState {
     Hit, Miss, Blank,
 }
-use DisplayState::*;
-use crate::game::{SIZE, Player, Coord};
-use std::io::stdin;
-use std::str::FromStr;
 
 struct PlayerView {
     state: [[DisplayState; SIZE]; SIZE]
@@ -19,13 +22,14 @@ impl fmt::Display for PlayerView {
 
         write!(f, "  |");
 
-        //let it crash if it's more than 26 lol
-        for i in 0..SIZE {
-            write!(f, "{}|", alphabet.as_bytes()[i] as char)?;
+        for i in 1..=SIZE {
+            write!(f, "{}|", i)?;
         }
 
-        for (idx, col) in self.state.iter().enumerate() {
-            write!(f, "\n{} |", idx+1)?;
+        assert!(SIZE <= 26);
+        for (i, col) in self.state.iter().enumerate() {
+            //Just let it crash or something if it's more than 26 lol
+            write!(f, "\n{} |", alphabet.as_bytes()[i] as char)?;
 
             for tile in col.iter() {
                 let indicator = match tile {
@@ -82,6 +86,55 @@ impl Player for User {
                 _ => panic!("\nError: user is too stupid to follow simple instructions\n"),
             }
         }
+    }
+
+    //random for now 
+    fn place_ships(&self) -> [(usize, Coord, Orientation); 5] {  
+        const NUM_SHIPS: usize = 5;
+        let mut board = [[false; SIZE]; SIZE];
+        let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
+
+        let mut ship_size = 1;
+
+        while ship_size < NUM_SHIPS {
+            let mut rng = rand::thread_rng();
+
+            let orient = match rng.gen_range(0..4) {
+                0 => Up,
+                1 => Down,
+                2 => Left,
+                3 => Right,
+                _ => todo!(),
+            };
+
+            let start = Coord { x: rng.gen_range(0..SIZE), y: rng.gen_range(0..SIZE) };
+            let mut curr_coord = start;
+
+            let mut break_flag = false;
+
+            let mut new_board = board.clone();
+
+            for _ in 0..ship_size {
+                if !curr_coord.in_board() || board[curr_coord.x][curr_coord.y] {
+                    break_flag = true;
+                    break;
+                }
+
+                new_board[curr_coord.x][curr_coord.y] = true;
+                curr_coord = curr_coord.shift(orient);
+            }
+
+            if break_flag { continue; }
+
+            board = new_board;
+            ship_size += 1;
+
+            placements[ship_size].0 = ship_size;
+            placements[ship_size].1 = curr_coord;
+            placements[ship_size].2 = orient;
+        }
+
+        placements
     }
 }
 

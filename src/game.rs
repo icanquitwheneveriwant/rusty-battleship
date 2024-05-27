@@ -6,11 +6,12 @@ struct Board {
     state: [[bool; SIZE]; SIZE],
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Coord {
-    pub x: u32,
-    pub y: u32,
+    pub x: usize,
+    pub y: usize,
 }
+
 
 impl std::str::FromStr for Coord {
     type Err = ();
@@ -31,11 +32,50 @@ impl std::str::FromStr for Coord {
             return Err(())
         }
 
-        Ok(Coord {x: (first-1) as u32, y: (second-1) as u32 })
+        Ok(Coord {x: (first-1) as usize, y: (second-1) as usize })
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum Orientation { Up, Down, Left, Right }
+
+use Orientation::*;
+
+impl Coord {
+    pub fn shift(&self, dir: Orientation) -> Coord {
+        match dir {
+            Up => Coord { x: self.x, y: self.y+1 },
+            Down => Coord { x: self.x, y: self.y-1 },
+            Left => Coord { x: self.x-1, y: self.y },
+            Right => Coord { x: self.x+1, y: self.y },
+        }
+    }
+
+    pub fn shift_dist(&self, dir: Orientation, dist: usize) -> Coord {
+        match dir {
+            Up => Coord { x: self.x, y: self.y+dist },
+            Down => Coord { x: self.x, y: self.y-dist },
+            Left => Coord { x: self.x-dist, y: self.y },
+            Right => Coord { x: self.x+dist, y: self.y },
+        }
+    }
+
+    pub fn in_board(&self) -> bool {
+        self.x >= 0 && self.x < SIZE && self.y >= 0 && self.y < SIZE
+    }
+}
+
+/*
+impl opps::Add<Coord> for Coord {
+    type Output = Coord;
+
+    fn step(self, _rhs: Coord) {
+
+    }
+}*/
+
 pub trait Player {
+    fn place_ships(&self) -> [(usize, Coord, Orientation); 5];
     fn turn(&self) -> Coord;
 }
 
