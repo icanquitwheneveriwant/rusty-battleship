@@ -1,7 +1,9 @@
 
+use crate::player::*;
 
 pub const SIZE: usize = 8;
 
+#[derive(Debug)]
 struct Board {
     state: [[bool; SIZE]; SIZE],
 }
@@ -42,45 +44,88 @@ pub enum Orientation { Up, Down, Left, Right }
 use Orientation::*;
 
 impl Coord {
-    pub fn shift(&self, dir: Orientation) -> Coord {
+
+    pub fn shift_dist(&self, dir: Orientation, dist: usize) -> Result<Coord, ()> {
         match dir {
-            Up => Coord { x: self.x, y: self.y+1 },
-            Down => Coord { x: self.x, y: self.y-1 },
-            Left => Coord { x: self.x-1, y: self.y },
-            Right => Coord { x: self.x+1, y: self.y },
+            Up => {
+                let diff: i64 = self.y as i64 + dist as i64;
+                if diff >= SIZE as i64 { return Err(()) }
+                Ok(Coord { x: self.x, y: diff as usize })
+            },
+            Down => {
+                let diff: i64 = self.y as i64 - dist as i64;
+                if diff < 0 { return Err(()) }
+                Ok(Coord { x: self.x, y: diff as usize })
+            },
+            Left => {
+                let diff: i64 = self.x as i64 - dist as i64;
+                if diff < 0 { return Err(()) }
+                Ok(Coord { x: diff as usize, y: self.y })
+            },
+            
+            Right => {
+                let diff: i64 = self.x as i64 + dist as i64;
+                if diff >= SIZE as i64 { return Err(()) }
+                Ok(Coord { x: diff as usize, y: self.y })
+            },
         }
     }
 
-    pub fn shift_dist(&self, dir: Orientation, dist: usize) -> Coord {
-        match dir {
-            Up => Coord { x: self.x, y: self.y+dist },
-            Down => Coord { x: self.x, y: self.y-dist },
-            Left => Coord { x: self.x-dist, y: self.y },
-            Right => Coord { x: self.x+dist, y: self.y },
-        }
+    pub fn shift(&self, dir: Orientation) -> Result<Coord, ()> {
+        self.shift_dist(dir, 1)
     }
+
 
     pub fn in_board(&self) -> bool {
-        self.x >= 0 && self.x < SIZE && self.y >= 0 && self.y < SIZE
+        self.x < SIZE && self.y < SIZE
     }
 }
-
-/*
-impl opps::Add<Coord> for Coord {
-    type Output = Coord;
-
-    fn step(self, _rhs: Coord) {
-
-    }
-}*/
 
 pub trait Player {
     fn place_ships(&self) -> [(usize, Coord, Orientation); 5];
     fn turn(&self) -> Coord;
 }
 
-pub struct Game<'a> {
+pub struct Game {
     board: Board,
-    p1: &'a mut dyn Player,
-    p2: &'a mut dyn Player,
+    //CHANGE BACK
+    p1: Box<dyn Player>,
+    p2: Box<dyn Player>,
+}
+
+pub enum GameStatus {
+    Initialization,
+    P1Turn,
+    P2Turn,
+    P1Win,
+    P2Win,
+}
+
+impl Game {
+    pub fn new() -> Game {
+        Game {
+            board: Board { state: [[false; SIZE]; SIZE] },
+            p1: Box::new(User::new()),
+            p2: Box::new(User::new()),
+        }
+    }
+
+    pub fn turn(&mut self) -> GameStatus {
+        let placements = self.p1.place_ships();
+
+        for placement in placements.iter() {
+            let mut coord = placement.1;
+
+            for _ in 0..(placement.0) {
+                self.board.state[coord.x][coord.y] = true;
+                
+            }
+        }
+
+        //println!("{:?}", self.board);
+
+        self.p1.turn();
+
+        GameStatus::P1Turn
+    }
 }

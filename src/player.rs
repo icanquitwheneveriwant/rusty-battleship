@@ -7,12 +7,13 @@ use std::str::FromStr;
 use rand::Rng;
 
 #[derive(Clone, Copy)]
-enum DisplayState {
+pub enum DisplayState {
     Hit, Miss, Blank,
 }
 
-struct PlayerView {
-    state: [[DisplayState; SIZE]; SIZE]
+#[derive(Clone)]
+pub struct PlayerView {
+    pub state: [[DisplayState; SIZE]; SIZE]
 }
 
 use std::fmt;
@@ -47,8 +48,14 @@ impl fmt::Display for PlayerView {
 }
 
 pub struct User {
-    view: PlayerView,
+    pub view: PlayerView,
 }
+
+/*
+pub struct Computer {
+
+}
+*/
 
 impl User {
     pub fn new() -> User {
@@ -81,7 +88,7 @@ impl Player for User {
 
             match fail_count {
                 1 => println!("Input error: format is (x, y), where x and y are integers from 1-{}", SIZE),
-                //2 => println!("Is it really that hard to understand?"),
+                2 => println!("Is it really that fucking hard to understand?"),
                 //3 => println!("Jesus fucking christ how hard is it to enter a fucking coordinate pair"),
                 _ => panic!("\nError: user is too stupid to follow simple instructions\n"),
             }
@@ -104,12 +111,11 @@ impl Player for User {
                 1 => Down,
                 2 => Left,
                 3 => Right,
-                _ => todo!(),
+                _ => unreachable!(),
             };
 
             let start = Coord { x: rng.gen_range(0..SIZE), y: rng.gen_range(0..SIZE) };
             let mut curr_coord = start;
-
             let mut break_flag = false;
 
             let mut new_board = board.clone();
@@ -121,7 +127,14 @@ impl Player for User {
                 }
 
                 new_board[curr_coord.x][curr_coord.y] = true;
-                curr_coord = curr_coord.shift(orient);
+
+                let new_coord = curr_coord.shift(orient);
+                if new_coord.is_ok() {
+                    curr_coord = new_coord.unwrap();
+                } else {
+                    break_flag = true;
+                    break;
+                }
             }
 
             if break_flag { continue; }
@@ -129,12 +142,22 @@ impl Player for User {
             board = new_board;
             ship_size += 1;
 
-            placements[ship_size].0 = ship_size;
-            placements[ship_size].1 = curr_coord;
-            placements[ship_size].2 = orient;
+            placements[ship_size-1].0 = ship_size+1;
+            placements[ship_size-1].1 = curr_coord;
+            placements[ship_size-1].2 = orient;
         }
 
         placements
     }
 }
+
+/*
+impl Computer {
+    
+}
+
+impl Player for Computer {
+    
+}
+*/
 
