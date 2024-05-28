@@ -9,7 +9,11 @@ use std::fs;
 fn main() {
     assert!(SIZE >= 5);
 
-    println!("{}\n\n", fs::read_to_string("assets/ascii_art.txt").unwrap());
+    let art = fs::read_to_string("assets/ascii_art.txt");
+    if art.is_ok() {
+        println!("{}\n\n", art.unwrap());
+    }
+
     println!("Rusty battleships\n");
 
     let mut game = Game::new();

@@ -115,26 +115,22 @@ impl Player for User {
             };
 
             let start = Coord { x: rng.gen_range(0..SIZE), y: rng.gen_range(0..SIZE) };
-            let mut curr_coord = start;
+            let mut curr_coord = Ok(start);
             let mut break_flag = false;
 
             let mut new_board = board.clone();
 
             for _ in 0..ship_size {
-                if !curr_coord.in_board() || board[curr_coord.x][curr_coord.y] {
-                    break_flag = true;
-                    break;
+                if let Ok(new_coord) = curr_coord {
+                    if new_coord.in_board() && !board[new_coord.x][new_coord.y] {
+                        new_board[new_coord.x][new_coord.y] = true;
+                        curr_coord = new_coord.shift(orient);
+                        continue;
+                    }
                 }
 
-                new_board[curr_coord.x][curr_coord.y] = true;
-
-                let new_coord = curr_coord.shift(orient);
-                if new_coord.is_ok() {
-                    curr_coord = new_coord.unwrap();
-                } else {
-                    break_flag = true;
-                    break;
-                }
+                break_flag = true;
+                break;
             }
 
             if break_flag { continue; }
@@ -143,7 +139,7 @@ impl Player for User {
             ship_size += 1;
 
             placements[ship_size-1].0 = ship_size+1;
-            placements[ship_size-1].1 = curr_coord;
+            placements[ship_size-1].1 = start;
             placements[ship_size-1].2 = orient;
         }
 

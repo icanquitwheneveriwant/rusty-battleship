@@ -87,12 +87,14 @@ pub trait Player {
 }
 
 pub struct Game {
-    board: Board,
-    //CHANGE BACK
+    status: GameStatus,
     p1: Box<dyn Player>,
     p2: Box<dyn Player>,
+    p1_board: Board,
+    p2_board: Board,
 }
 
+#[derive(PartialEq)]
 pub enum GameStatus {
     Initialization,
     P1Turn,
@@ -101,30 +103,54 @@ pub enum GameStatus {
     P2Win,
 }
 
+use GameStatus::*;
+
 impl Game {
     pub fn new() -> Game {
         Game {
-            board: Board { state: [[false; SIZE]; SIZE] },
+            status: Initialization,
             p1: Box::new(User::new()),
             p2: Box::new(User::new()),
+            p1_board: Board { state: [[false; SIZE]; SIZE] },
+            p2_board: Board { state: [[false; SIZE]; SIZE] },
+
         }
     }
 
-    pub fn turn(&mut self) -> GameStatus {
+    fn initialize(&mut self) {
+
         let placements = self.p1.place_ships();
 
         for placement in placements.iter() {
             let mut coord = placement.1;
 
             for _ in 0..(placement.0) {
-                self.board.state[coord.x][coord.y] = true;
+                self.p1_board.state[coord.x][coord.y] = true;
                 
             }
         }
 
-        //println!("{:?}", self.board);
+        let placements = self.p2.place_ships();
 
-        self.p1.turn();
+        for placement in placements.iter() {
+            let mut coord = placement.1;
+
+            for _ in 0..(placement.0) {
+                self.p2_board.state[coord.x][coord.y] = true;
+                
+            }
+        }
+    }
+
+    pub fn turn(&mut self) -> GameStatus {
+        if self.status == Initialization {
+            self.initialize();
+            return P1Turn
+        }
+
+        let player = if self.status == P1Turn { &mut self.p1 } else { &mut self.p2 };
+
+        //self.p2.turn();
 
         GameStatus::P1Turn
     }
