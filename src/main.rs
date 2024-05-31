@@ -2,7 +2,7 @@
 mod game;
 mod player;
 
-use game::*;xw
+use game::*;
 use std::fs;
 
 fn main() {
