@@ -1,12 +1,12 @@
 
 use DisplayState::*;
-use crate::game::{SIZE, Player, Coord, Orientation};
+use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
 use Orientation::*;
 use std::io::stdin;
 use std::str::FromStr;
 use rand::Rng;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum DisplayState {
     Hit, Miss, Blank,
 }
@@ -48,6 +48,7 @@ impl fmt::Display for PlayerView {
 }
 
 pub struct User {
+    pub name: String,
     pub view: PlayerView,
 }
 
@@ -58,8 +59,9 @@ pub struct Computer {
 */
 
 impl User {
-    pub fn new() -> User {
+    pub fn new(name: &str) -> User {
         User { 
+            name: name.to_string(),
             view: PlayerView { state: [[Blank; SIZE]; SIZE] }
         }
     }
@@ -97,7 +99,6 @@ impl Player for User {
 
     //random for now 
     fn place_ships(&self) -> [(usize, Coord, Orientation); 5] {  
-        const NUM_SHIPS: usize = 5;
         let mut board = [[false; SIZE]; SIZE];
         let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
 
@@ -144,6 +145,19 @@ impl Player for User {
         }
 
         placements
+    }
+
+    fn hit_feedback(&mut self, coord: Coord, hit: bool) {
+        self.view.state[coord.x][coord.y] = if hit { Hit } else { Miss };
+        println!("({}, {}) is a {}!", coord.x+1, coord.y+1, if hit { "hit" } else { "miss" });
+    }
+
+    fn count_hits(&self) -> usize {
+        self.view.state.iter().flatten().filter(|&&state| state == Hit).count()
+    }
+
+    fn get_name(&self) -> &str {
+        &self.name
     }
 }
 

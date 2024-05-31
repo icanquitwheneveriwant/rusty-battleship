@@ -2,6 +2,7 @@
 use crate::player::*;
 
 pub const SIZE: usize = 8;
+pub const NUM_SHIPS: usize = 5;
 
 #[derive(Debug)]
 struct Board {
@@ -81,9 +82,15 @@ impl Coord {
     }
 }
 
+
 pub trait Player {
     fn place_ships(&self) -> [(usize, Coord, Orientation); 5];
+    //consider changing name
     fn turn(&self) -> Coord;
+    fn hit_feedback(&mut self, coord: Coord, hit: bool);
+    //really wish Rust had inheritance!
+    fn count_hits(&self) -> usize;
+    fn get_name(&self) -> &str;
 }
 
 pub struct Game {
@@ -94,7 +101,7 @@ pub struct Game {
     p2_board: Board,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum GameStatus {
     Initialization,
     P1Turn,
@@ -109,8 +116,8 @@ impl Game {
     pub fn new() -> Game {
         Game {
             status: Initialization,
-            p1: Box::new(User::new()),
-            p2: Box::new(User::new()),
+            p1: Box::new(User::new("Player 1")),
+            p2: Box::new(User::new("Player 2")),
             p1_board: Board { state: [[false; SIZE]; SIZE] },
             p2_board: Board { state: [[false; SIZE]; SIZE] },
 
@@ -140,18 +147,34 @@ impl Game {
                 
             }
         }
+
+        self.status = P1Turn
     }
 
     pub fn turn(&mut self) -> GameStatus {
-        if self.status == Initialization {
-            self.initialize();
-            return P1Turn
+
+        match self.status {
+            Initialization => {
+                self.initialize();
+                return self.status;
+            },
+
+            P1Win => { return self.status },
+            P2Win => { return self.status },
+            _ => {}
+        }
+            
+        let (player, enemy_board) = if self.status == P1Turn { (&mut (*self.p1) ,  &mut self.p2_board) } 
+                                else { (&mut (*self.p2), &mut self.p1_board) };
+
+        let shot_coord = player.turn();
+        player.hit_feedback(shot_coord, enemy_board.state[shot_coord.x][shot_coord.y]);
+
+        
+        if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2 {
+            self.status = if self.status == P1Turn { P1Win } else { P2Win }
         }
 
-        let player = if self.status == P1Turn { &mut self.p1 } else { &mut self.p2 };
-
-        //self.p2.turn();
-
-        GameStatus::P1Turn
+        self.status
     }
 }

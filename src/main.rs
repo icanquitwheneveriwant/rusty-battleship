@@ -2,8 +2,7 @@
 mod game;
 mod player;
 
-use game::*;
-use player::*;
+use game::*;xw
 use std::fs;
 
 fn main() {
@@ -17,7 +16,17 @@ fn main() {
     println!("Rusty battleships\n");
 
     let mut game = Game::new();
-    _ = game.turn();
+    loop {
+        let status = game.turn();
+
+        if status == GameStatus::P1Win {
+            println!("Player 1 wins!");
+            break;
+        } else if status == GameStatus::P2Win {
+            println!("Player 2 wins!");
+            break;
+        }
+    }
 
 }
 
