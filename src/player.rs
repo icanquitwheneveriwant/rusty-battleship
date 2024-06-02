@@ -21,7 +21,7 @@ impl fmt::Display for PlayerView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-        write!(f, "  |");
+        write!(f, "\n  |");
 
         for i in 1..=SIZE {
             write!(f, "{}|", i)?;
@@ -72,7 +72,7 @@ impl Player for User {
     fn turn(&self) -> Coord {
 
         println!("{}", self.view);
-        println!("\nEnter coordinates:\n");
+        println!("\n{}'s turn\nEnter coordinates:\n", self.name);
 
         let mut fail_count: u32 = 0;
 
@@ -98,13 +98,13 @@ impl Player for User {
     }
 
     //random for now 
-    fn place_ships(&self) -> [(usize, Coord, Orientation); 5] {  
+    fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS] {  
         let mut board = [[false; SIZE]; SIZE];
         let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
 
         let mut ship_size = 1;
 
-        while ship_size < NUM_SHIPS {
+        while ship_size <= NUM_SHIPS {
             let mut rng = rand::thread_rng();
 
             let orient = match rng.gen_range(0..4) {
@@ -137,11 +137,12 @@ impl Player for User {
             if break_flag { continue; }
 
             board = new_board;
-            ship_size += 1;
 
-            placements[ship_size-1].0 = ship_size+1;
+            placements[ship_size-1].0 = ship_size;
             placements[ship_size-1].1 = start;
             placements[ship_size-1].2 = orient;
+
+            ship_size += 1;
         }
 
         placements

@@ -49,12 +49,12 @@ impl Coord {
     pub fn shift_dist(&self, dir: Orientation, dist: usize) -> Result<Coord, ()> {
         match dir {
             Up => {
-                let diff: i64 = self.y as i64 + dist as i64;
+                let diff: i64 = self.y as i64 - dist as i64;
                 if diff >= SIZE as i64 { return Err(()) }
                 Ok(Coord { x: self.x, y: diff as usize })
             },
             Down => {
-                let diff: i64 = self.y as i64 - dist as i64;
+                let diff: i64 = self.y as i64 + dist as i64;
                 if diff < 0 { return Err(()) }
                 Ok(Coord { x: self.x, y: diff as usize })
             },
@@ -84,7 +84,7 @@ impl Coord {
 
 
 pub trait Player {
-    fn place_ships(&self) -> [(usize, Coord, Orientation); 5];
+    fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS];
     //consider changing name
     fn turn(&self) -> Coord;
     fn hit_feedback(&mut self, coord: Coord, hit: bool);
@@ -131,9 +131,10 @@ impl Game {
         for placement in placements.iter() {
             let mut coord = placement.1;
 
-            for _ in 0..(placement.0) {
+            for ship_size in 0..(placement.0) {
                 self.p1_board.state[coord.x][coord.y] = true;
-                
+                //unwrap_or is just for last iteration of the loop
+                coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
             }
         }
 
@@ -144,7 +145,7 @@ impl Game {
 
             for _ in 0..(placement.0) {
                 self.p2_board.state[coord.x][coord.y] = true;
-                
+                coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
             }
         }
 
@@ -170,11 +171,13 @@ impl Game {
         let shot_coord = player.turn();
         player.hit_feedback(shot_coord, enemy_board.state[shot_coord.x][shot_coord.y]);
 
-        
+        //n*(n+1)/2 is sum from 1 to N formula
+        //super cool story about how this formula was discovered btw
         if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2 {
             self.status = if self.status == P1Turn { P1Win } else { P2Win }
         }
 
+        self.status = if self.status == P1Turn { P2Turn } else { P1Turn };
         self.status
     }
 }
