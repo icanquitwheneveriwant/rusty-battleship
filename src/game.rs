@@ -131,7 +131,7 @@ impl Game {
         for placement in placements.iter() {
             let mut coord = placement.1;
 
-            for ship_size in 0..(placement.0) {
+            for _ in 0..(placement.0) {
                 self.p1_board.state[coord.x][coord.y] = true;
                 //unwrap_or is just for last iteration of the loop
                 coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
