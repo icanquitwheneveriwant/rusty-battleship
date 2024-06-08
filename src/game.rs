@@ -2,7 +2,7 @@
 use crate::player::*;
 
 pub const SIZE: usize = 8;
-pub const NUM_SHIPS: usize = 5;
+pub const NUM_SHIPS: usize = 4;
 
 #[derive(Debug)]
 struct Board {

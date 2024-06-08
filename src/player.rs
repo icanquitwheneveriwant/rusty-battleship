@@ -74,9 +74,10 @@ impl Player for User {
 
         let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
 
-        let mut ship_size = 1;
+        //ship sizes start at 2 according to the rules
+        let mut ship_size = 2;
 
-        while ship_size <= NUM_SHIPS {
+        while ship_size <= NUM_SHIPS+1 {
 
             let ship_type_str = match ship_size {
                 5 => String::from("Carrier"),
@@ -94,8 +95,11 @@ impl Player for User {
             stdin().read_line(&mut input_str).unwrap();
             let coord = Coord::from_str(&input_str);
 
+            input_str.clear();
             stdin().read_line(&mut input_str).unwrap();
-            let orient: Result<Orientation, ()> = match input_str.as_str() {
+            //let trimmed_slice = input_str.as_str().trim();
+
+            let orient: Result<Orientation, ()> = match input_str.as_str().trim() {
                 "Up" => Ok(Up),
                 "Down" => Ok(Down),
                 "Left" => Ok(Left),
@@ -121,7 +125,7 @@ impl Player for User {
                 if let Ok(new_coord) = curr_coord {
                     if new_coord.in_board() && !board[new_coord.x][new_coord.y] {
                         new_board[new_coord.x][new_coord.y] = true;
-                        new_view[new_coord.x][new_coord.y] = Hit;
+                        new_view.state[new_coord.x][new_coord.y] = Hit;
                         curr_coord = new_coord.shift(orient);
                         continue;
                     }
@@ -139,9 +143,10 @@ impl Player for User {
             board = new_board;
             placement_view = new_view;
 
-            placements[ship_size-1].0 = ship_size;
-            placements[ship_size-1].1 = coord.unwrap();
-            placements[ship_size-1].2 = orient;
+            //-2 since ship placements start at size 2
+            placements[ship_size-2].0 = ship_size;
+            placements[ship_size-2].1 = coord.unwrap();
+            placements[ship_size-2].2 = orient;
 
             ship_size += 1;
         }
