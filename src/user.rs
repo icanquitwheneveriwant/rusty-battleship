@@ -1,18 +1,18 @@
 
-use DisplayState::*;
+use ViewState::*;
 use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
 use Orientation::*;
 use std::io::stdin;
 use std::str::FromStr;
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum DisplayState {
+pub enum ViewState {
     Hit, Miss, Blank,
 }
 
 #[derive(Clone)]
 pub struct PlayerView {
-    pub state: [[DisplayState; SIZE]; SIZE]
+    pub state: [[ViewState; SIZE]; SIZE]
 }
 
 use std::fmt;
@@ -46,16 +46,38 @@ impl fmt::Display for PlayerView {
     }
 }
 
+
+impl PlayerView {
+    pub fn place_ship(&self, ship_size: usize, coord: Coord, orient: Orientation) -> Result<Self, ()> {
+        
+        let Ship = Hit;
+
+        let mut curr_coord = Ok(coord);
+        let mut new_view = self.clone();
+
+        for _ in 0..ship_size {
+            if let Ok(new_coord) = curr_coord {
+                if new_coord.in_board() && new_view.state[new_coord.x][new_coord.y] == Blank {
+                    new_view.state[new_coord.x][new_coord.y] = Ship;
+                    curr_coord = new_coord.shift(orient);
+                    continue;
+                } else {
+                    return Err(());
+                }
+            } else {
+                return Err(());
+            }
+        }
+
+        Ok(new_view)
+    }
+
+}
+
 pub struct User {
     pub name: String,
     pub view: PlayerView,
 }
-
-/*
-pub struct Computer {
-
-}
-*/
 
 impl User {
     pub fn new(name: &str) -> User {
@@ -69,7 +91,6 @@ impl User {
 impl Player for User {
 
      fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS] {  
-        let mut board = [[false; SIZE]; SIZE];
         let mut placement_view = PlayerView { state: [[Blank; SIZE]; SIZE] };
 
         let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
@@ -118,13 +139,11 @@ impl Player for User {
             let mut curr_coord = coord;
             let mut valid_flag = true;
 
-            let mut new_board = board.clone();
             let mut new_view = placement_view.clone();
 
             for _ in 0..ship_size {
                 if let Ok(new_coord) = curr_coord {
-                    if new_coord.in_board() && !board[new_coord.x][new_coord.y] {
-                        new_board[new_coord.x][new_coord.y] = true;
+                    if new_coord.in_board() && new_view.state[new_coord.x][new_coord.y] != Hit {
                         new_view.state[new_coord.x][new_coord.y] = Hit;
                         curr_coord = new_coord.shift(orient);
                         continue;
@@ -140,7 +159,6 @@ impl Player for User {
                 continue;  
             }
 
-            board = new_board;
             placement_view = new_view;
 
             //-2 since ship placements start at size 2
@@ -185,7 +203,7 @@ impl Player for User {
 
     fn hit_feedback(&mut self, coord: Coord, hit: bool) {
         self.view.state[coord.x][coord.y] = if hit { Hit } else { Miss };
-        println!("({}, {}) is a {}!", coord.x+1, coord.y+1, if hit { "hit" } else { "miss" });
+        //println!("({}, {}) is a {}!", coord.x+1, coord.y+1, if hit { "hit" } else { "miss" });
     }
 
     fn count_hits(&self) -> usize {
@@ -197,61 +215,3 @@ impl Player for User {
     }
 }
 
-/*
-impl Computer {
-    
-}
-
-impl Player for Computer {
-      fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS] {  
-        let mut board = [[false; SIZE]; SIZE];
-        let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
-
-        let mut ship_size = 1;
-
-        while ship_size <= NUM_SHIPS {
-            let mut rng = rand::thread_rng();
-
-            let orient = match rng.gen_range(0..4) {
-                0 => Up,
-                1 => Down,
-                2 => Left,
-                3 => Right,
-                _ => unreachable!(),
-            };
-
-            let start = Coord { x: rng.gen_range(0..SIZE), y: rng.gen_range(0..SIZE) };
-            let mut curr_coord = Ok(start);
-            let mut break_flag = false;
-
-            let mut new_board = board.clone();
-
-            for _ in 0..ship_size {
-                if let Ok(new_coord) = curr_coord {
-                    if new_coord.in_board() && !board[new_coord.x][new_coord.y] {
-                        new_board[new_coord.x][new_coord.y] = true;
-                        curr_coord = new_coord.shift(orient);
-                        continue;
-                    }
-                }
-
-                break_flag = true;
-                break;
-            }
-
-            if break_flag { continue; }
-
-            board = new_board;
-
-            placements[ship_size-1].0 = ship_size;
-            placements[ship_size-1].1 = start;
-            placements[ship_size-1].2 = orient;
-
-            ship_size += 1;
-        }
-
-        placements
-    }
-    
-}
-*/

@@ -1,6 +1,7 @@
 
 mod game;
-mod player;
+mod user;
+mod computer;
 
 use game::*;
 use std::fs;

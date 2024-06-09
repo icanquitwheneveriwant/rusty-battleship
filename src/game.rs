@@ -1,5 +1,8 @@
 
-use crate::player::*;
+use crate::user::*;
+use crate::computer::*;
+use strum_macros::EnumIter;
+
 
 pub const SIZE: usize = 8;
 pub const NUM_SHIPS: usize = 4;
@@ -14,6 +17,17 @@ pub struct Coord {
     pub x: usize,
     pub y: usize,
 }
+
+/*
+(1, 1)
+Right
+(1, 2)
+Right
+(1, 3)
+Right
+(1, 4)
+Right
+*/
 
 
 impl std::str::FromStr for Coord {
@@ -31,7 +45,7 @@ impl std::str::FromStr for Coord {
         let first: i32 = first.parse().map_err(|_| ())?;
         let second: i32 = second.parse().map_err(|_| ())?;
 
-        if first > 8 || first < 1 || second > 8 || second < 1 {
+        if first > SIZE as i32 || first < 1 || second > SIZE as i32 || second < 1 {
             return Err(())
         }
 
@@ -39,7 +53,7 @@ impl std::str::FromStr for Coord {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, EnumIter)]
 pub enum Orientation { Up, Down, Left, Right }
 
 use Orientation::*;
@@ -117,7 +131,7 @@ impl Game {
         Game {
             status: Initialization,
             p1: Box::new(User::new("Player 1")),
-            p2: Box::new(User::new("Player 2")),
+            p2: Box::new(Computer::new("Computer")),
             p1_board: Board { state: [[false; SIZE]; SIZE] },
             p2_board: Board { state: [[false; SIZE]; SIZE] },
 
@@ -169,11 +183,16 @@ impl Game {
                                 else { (&mut (*self.p2), &mut self.p1_board) };
 
         let shot_coord = player.turn();
-        player.hit_feedback(shot_coord, enemy_board.state[shot_coord.x][shot_coord.y]);
+        println!("{} plays ({}, {})", player.get_name(), shot_coord.x+1, shot_coord.y+1);
+        let was_hit = enemy_board.state[shot_coord.x][shot_coord.y];
+
+        println!("({}, {}) is a {}!", shot_coord.x+1, shot_coord.y+1, if was_hit { "hit" } else { "miss" });
+        
+        player.hit_feedback(shot_coord, was_hit);
 
         //n*(n+1)/2 is sum from 1 to N formula
         //super cool story about how this formula was discovered btw
-        if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2 {
+        if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2-1 {
             self.status = if self.status == P1Turn { P1Win } else { P2Win }
         }
 
