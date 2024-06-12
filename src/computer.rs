@@ -1,14 +1,32 @@
 
+use enum_as_inner::EnumAsInner;
 use crate::user::{ViewState, PlayerView};
 use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
 use Orientation::*;
 use ViewState::*;
+use BrainState::*;
 use strum::IntoEnumIterator;
 use rand::Rng;
 
+
+struct IteratingState {
+    initial_hit: Coord,
+    coord: Coord,
+    dir: Orientation,
+    must_be_vertical: bool,
+}
+
+#[derive(PartialEq)]
+enum BrainState {
+    Searching,
+    Iterating,
+}
+
 pub struct Computer {
     view: PlayerView,
-    name: String
+    name: String,
+    brain_state: BrainState,
+    iter_state: IteratingState
 }
 
 
@@ -43,9 +61,49 @@ impl Computer {
     pub fn new(name: &str) -> Self {
         Computer { 
             name: name.to_string(),
-            view: PlayerView { state: [[Blank; SIZE]; SIZE] }
+            view: PlayerView { state: [[Blank; SIZE]; SIZE] },
+            brain_state: Searching,
+
+            //iter_state initial value is meaningless
+            iter_state: IteratingState { 
+                initial_hit: Coord { x: 0, y: 0 },
+                coord: Coord { x: 0, y: 0 },
+                dir: Up,
+                must_be_vertical: false,
+             }
         }
     }
+
+    //Attempts to find a ship vertically first,
+    //and then tries horizontally
+
+    //Sticks to either vertical or horizontal,
+    //and goes back to probability guessing after
+    //there are no more hits along that axis
+    pub fn try_new_direction(&mut self) {
+
+        match self.iter_state.dir {
+            Up => {
+                self.iter_state.coord = self.iter_state.initial_hit;
+                self.iter_state.dir = Down;
+            },
+            Down => {
+                if self.iter_state.must_be_vertical {
+                    self.brain_state = Searching;
+                } else {
+                    self.iter_state.dir = Left;
+                }
+            },
+            Left => {
+                self.iter_state.coord = self.iter_state.initial_hit;
+                self.iter_state.dir = Right;
+            },
+            Right => {
+                self.brain_state = Searching;
+            },
+        }
+    }
+
 }
 
 impl Player for Computer {
@@ -81,27 +139,68 @@ impl Player for Computer {
         placements
     }
     
-    fn turn(&self) -> Coord {
-        let mut hottest_coord = Coord { x: 0, y: 0 };
-        let mut hottest_val = 0;
+    fn turn(&mut self) -> Coord {
 
-        let heat_map = self.gen_heat_map();
+        match self.brain_state {
+            Searching => {
 
-        for x in 0..SIZE {
-            for y in 0..SIZE {
-                if heat_map[x][y] > hottest_val {
-                    hottest_coord = Coord { x: x, y: y };
-                    hottest_val = heat_map[x][y];
+                let heat_map = self.gen_heat_map();
+
+                //finds coordinates of max value in heat map
+                /*
+               let (hottest_x, hottest_y) = (0..SIZE)
+                    .flat_map(|x| (0..SIZE).map(move |y| (x, y)))
+                    .max_by_key(|(x, y)| &heat_map[*x][*y]).unwrap();*/
+
+                //----------
+                //let mut hottest_coord = Coord { x: 0, y: 0 };
+                let mut hottest_x = 0;
+                let mut hottest_y = 0;
+                let mut hottest_val = 0;
+
+                for x in 0..SIZE {
+                    for y in 0..SIZE {
+                        if heat_map[x][y] > hottest_val {
+                            //hottest_coord = Coord { x: x, y: y };
+                            (hottest_x, hottest_y) = (x, y);
+                            hottest_val = heat_map[x][y];
+                        }
+                    }
                 }
+
+
+                //----------
+
+                //so fucking hot
+                Coord { x: hottest_x, y: hottest_y }
             }
+
+            Iterating => {
+                let mut next_coord = self.iter_state.coord.shift(self.iter_state.dir);
+                if next_coord.is_ok() && 
+                    self.view.state[next_coord.unwrap().x][next_coord.unwrap().y] == Blank {
+
+                    self.try_new_direction();
+                    self.turn()
+                } else {
+                    next_coord.unwrap()
+                }
+            },
         }
 
-        //so fucking hot
-        hottest_coord
     }
 
     fn hit_feedback(&mut self, coord: Coord, hit: bool) {
         self.view.state[coord.x][coord.y] = if hit { Hit } else { Miss };
+
+        if hit && self.brain_state == Searching {
+            self.brain_state = Iterating;
+            //add sequence length variable later
+            self.iter_state = IteratingState{ initial_hit: coord, coord: coord, dir: Up, must_be_vertical: false };
+       
+        } else if self.brain_state == Iterating && !hit {
+            self.try_new_direction();
+        }
     }
 
    fn count_hits(&self) -> usize {

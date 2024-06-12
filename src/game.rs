@@ -4,7 +4,7 @@ use crate::computer::*;
 use strum_macros::EnumIter;
 
 
-pub const SIZE: usize = 8;
+pub const SIZE: usize = 10;
 pub const NUM_SHIPS: usize = 4;
 
 #[derive(Debug)]
@@ -100,7 +100,7 @@ impl Coord {
 pub trait Player {
     fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS];
     //consider changing name
-    fn turn(&self) -> Coord;
+    fn turn(&mut self) -> Coord;
     fn hit_feedback(&mut self, coord: Coord, hit: bool);
     //really wish Rust had inheritance!
     fn count_hits(&self) -> usize;

@@ -173,7 +173,7 @@ impl Player for User {
     }
     
 
-    fn turn(&self) -> Coord {
+    fn turn(&mut self) -> Coord {
 
         println!("{}", self.view);
         println!("\n{}'s turn\nEnter coordinates:\n", self.name);
