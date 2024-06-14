@@ -20,7 +20,9 @@ impl fmt::Display for PlayerView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-        write!(f, "\n  |");
+        //cargo spits out a stupid error if I don't
+        //"use" the result
+        _ = write!(f, "\n  |");
 
         for i in 1..=SIZE {
             write!(f, "{}|", i)?;
@@ -90,6 +92,22 @@ impl User {
 
 impl Player for User {
 
+
+    /*
+    Test input:
+
+    (1, 1)
+    Right
+    (1, 2)
+    Right
+    (1, 3)
+    Right
+    (1, 4)
+    Right
+
+    (1, 1)
+    */
+
      fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS] {  
         let mut placement_view = PlayerView { state: [[Blank; SIZE]; SIZE] };
 
@@ -97,6 +115,8 @@ impl Player for User {
 
         //ship sizes start at 2 according to the rules
         let mut ship_size = 2;
+
+        let mut told_user_ai_error = false;
 
         while ship_size <= NUM_SHIPS+1 {
 
@@ -159,11 +179,45 @@ impl Player for User {
                 continue;  
             }
 
+            //Best way to compensate for an algorithm edge case
+            let coord = coord.unwrap();
+
+            for other in placements.iter() {
+
+                let both_horiz = (orient == Left || orient == Right) &&
+                                        (other.2 == Left || other.2 == Right);
+
+                let adjacent_y_axis = coord.y.abs_diff(other.1.y) == 1;
+
+
+                let end_coord = coord.shift_dist(orient, ship_size).unwrap();
+                let other_end_coord = coord.shift_dist(orient, ship_size).unwrap();
+
+                let x_overlapping = (other.1.x <= coord.x && coord.x <= other_end_coord.x) ||
+                                        (other.1.x <= end_coord.x && end_coord.x <= other_end_coord.x);
+
+                if both_horiz && adjacent_y_axis && x_overlapping {
+                    println!("Invalid placement: AI algorithm performs poorly \
+                            when two horizontal ships are placed next to each other");
+
+                    if !told_user_ai_error {
+                        println!("I could make it function technically but \
+                                I'm honestly pretty tired lol");
+                        told_user_ai_error = true;
+                    }
+
+                    valid_flag = false;
+                    break;
+                }
+            }
+
+            if !valid_flag { continue; }
+
             placement_view = new_view;
 
             //-2 since ship placements start at size 2
             placements[ship_size-2].0 = ship_size;
-            placements[ship_size-2].1 = coord.unwrap();
+            placements[ship_size-2].1 = coord;
             placements[ship_size-2].2 = orient;
 
             ship_size += 1;
@@ -203,7 +257,6 @@ impl Player for User {
 
     fn hit_feedback(&mut self, coord: Coord, hit: bool) {
         self.view.state[coord.x][coord.y] = if hit { Hit } else { Miss };
-        //println!("({}, {}) is a {}!", coord.x+1, coord.y+1, if hit { "hit" } else { "miss" });
     }
 
     fn count_hits(&self) -> usize {

@@ -1,18 +1,25 @@
 
-use enum_as_inner::EnumAsInner;
+//use enum_as_inner::EnumAsInner;
 use crate::user::{ViewState, PlayerView};
 use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
 use Orientation::*;
 use ViewState::*;
 use BrainState::*;
-use strum::IntoEnumIterator;
+//use strum::IntoEnumIterator;
 use rand::Rng;
+
+//use std::collections::VecDeque;
 
 
 struct IteratingState {
     initial_hit: Coord,
     coord: Coord,
     dir: Orientation,
+    //hit_q: VecDeque<Coord>,
+    
+    //if only going along one direction, if there are two adjacent
+    //horizontal ships, it will mark the intiailly hit point as an invalid
+    //position for a ship to have overlap with, detecting the probability as very low
     must_be_vertical: bool,
 }
 
@@ -35,11 +42,14 @@ impl Computer {
     fn gen_heat_map(&self) -> [[u8; SIZE]; SIZE] {
         let mut heat_map = [[0; SIZE]; SIZE];
 
+        let up_or_left = [Up, Left];
+
         for ship_size in 2..=NUM_SHIPS {
-            for dir in Orientation::iter() {
+            for dir in up_or_left.iter() {
                 for x in 0..SIZE {
                     for y in 0..SIZE {
 
+                        let dir = *dir;
                         let placement = self.view.place_ship(ship_size, Coord {x: x, y: y}, dir);
                         if placement.is_ok() {
                             let mut coord = Coord {x: x, y: y};
@@ -69,6 +79,7 @@ impl Computer {
                 initial_hit: Coord { x: 0, y: 0 },
                 coord: Coord { x: 0, y: 0 },
                 dir: Up,
+                //hit_q: VecDeque::new(),
                 must_be_vertical: false,
              }
         }
@@ -95,7 +106,7 @@ impl Computer {
                 }
             },
             Left => {
-                self.iter_state.coord = self.iter_state.initial_hit;
+                //self.iter_state.coord = self.iter_state.initial_hit;
                 self.iter_state.dir = Right;
             },
             Right => {
@@ -139,6 +150,8 @@ impl Player for Computer {
         placements
     }
     
+    //Just pray that there aren't two horizontal ships placed next,
+    //to each other, otherwise this algorithm will perform very poorly
     fn turn(&mut self) -> Coord {
 
         match self.brain_state {
@@ -161,14 +174,11 @@ impl Player for Computer {
                 for x in 0..SIZE {
                     for y in 0..SIZE {
                         if heat_map[x][y] > hottest_val {
-                            //hottest_coord = Coord { x: x, y: y };
                             (hottest_x, hottest_y) = (x, y);
                             hottest_val = heat_map[x][y];
                         }
                     }
                 }
-
-
                 //----------
 
                 //so fucking hot
@@ -176,18 +186,19 @@ impl Player for Computer {
             }
 
             Iterating => {
-                let mut next_coord = self.iter_state.coord.shift(self.iter_state.dir);
+                let next_coord = self.iter_state.coord.shift(self.iter_state.dir);
+
                 if next_coord.is_ok() && 
                     self.view.state[next_coord.unwrap().x][next_coord.unwrap().y] == Blank {
+                    next_coord.unwrap()
 
+                } else {
                     self.try_new_direction();
                     self.turn()
-                } else {
-                    next_coord.unwrap()
                 }
             },
         }
-
+ 
     }
 
     fn hit_feedback(&mut self, coord: Coord, hit: bool) {
@@ -211,3 +222,5 @@ impl Player for Computer {
         &self.name
     }
 }
+
+

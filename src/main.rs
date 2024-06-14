@@ -6,6 +6,10 @@ mod computer;
 use game::*;
 use std::fs;
 
+
+//no_announce_rules branch means that the only feedback from
+//turns is "hit" or "miss", and no sink info
+
 fn main() {
     //assert!(SIZE >= 5);
 

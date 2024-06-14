@@ -18,17 +18,6 @@ pub struct Coord {
     pub y: usize,
 }
 
-/*
-(1, 1)
-Right
-(1, 2)
-Right
-(1, 3)
-Right
-(1, 4)
-Right
-*/
-
 
 impl std::str::FromStr for Coord {
     type Err = ();
@@ -53,7 +42,7 @@ impl std::str::FromStr for Coord {
     }
 }
 
-#[derive(Clone, Copy, EnumIter)]
+#[derive(Clone, Copy, EnumIter, PartialEq)]
 pub enum Orientation { Up, Down, Left, Right }
 
 use Orientation::*;
