@@ -4,6 +4,7 @@ use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
 use Orientation::*;
 use std::io::stdin;
 use std::str::FromStr;
+use std::mem;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum ViewState {
@@ -182,27 +183,45 @@ impl Player for User {
             //Best way to compensate for an algorithm edge case
             let coord = coord.unwrap();
 
-            for other in placements.iter() {
+            for i in 0..ship_size-2 {
+
+
+                let other = placements[i];
 
                 let both_horiz = (orient == Left || orient == Right) &&
                                         (other.2 == Left || other.2 == Right);
 
                 let adjacent_y_axis = coord.y.abs_diff(other.1.y) == 1;
 
+                let mut start_coord = coord;
+                let mut end_coord = coord.shift_dist(orient, ship_size-1).unwrap();
+                if start_coord.x > end_coord.x { 
+                    mem::swap(&mut start_coord, &mut end_coord); 
+                }
 
-                let end_coord = coord.shift_dist(orient, ship_size).unwrap();
-                let other_end_coord = coord.shift_dist(orient, ship_size).unwrap();
 
-                let x_overlapping = (other.1.x <= coord.x && coord.x <= other_end_coord.x) ||
-                                        (other.1.x <= end_coord.x && end_coord.x <= other_end_coord.x);
+                let mut other_start_coord = other.1;
+                let mut other_end_coord = other.1.shift_dist(other.2, other.0-1).unwrap();
+                if other_start_coord.x > other_end_coord.x { 
+                    mem::swap(&mut other_start_coord, &mut other_end_coord); 
+                }
+
+
+                let (larger_span, smaller_span) = if ship_size > other.0 { 
+                    ((start_coord, end_coord), (other_start_coord, other_end_coord))
+                } else {
+                    ((other_start_coord, other_end_coord), (start_coord, end_coord))
+                };
+
+                let x_overlapping = smaller_span.1.x >= larger_span.0.x && smaller_span.0.x <= larger_span.1.x;
 
                 if both_horiz && adjacent_y_axis && x_overlapping {
-                    println!("Invalid placement: AI algorithm performs poorly \
+                    println!("\nInvalid placement: AI algorithm performs poorly \
                             when two horizontal ships are placed next to each other");
 
                     if !told_user_ai_error {
-                        println!("I could make it function technically but \
-                                I'm honestly pretty tired lol");
+                        println!("\nIt's a perfectly legal move btw,\n \
+                        I just don't feel like adapting the algorithm lmao");
                         told_user_ai_error = true;
                     }
 
