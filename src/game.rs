@@ -59,7 +59,7 @@ impl std::str::FromStr for Coord {
     }
 }
 
-#[derive(Clone, Copy, EnumIter)]
+#[derive(Clone, Copy, EnumIter, PartialEq, Debug)]
 pub enum Orientation { Up, Down, Left, Right }
 
 impl Coord {

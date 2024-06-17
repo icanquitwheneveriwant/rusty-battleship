@@ -4,6 +4,7 @@ use crate::game::{SIZE, Player, Coord, Orientation, Ship, NUM_SHIPS};
 use Orientation::*;
 use std::io::stdin;
 use std::str::FromStr;
+use std::mem;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum ViewState {
@@ -147,6 +148,7 @@ impl Player for User {
 
         //ship sizes start at 2 according to the rules
         let mut ship_size = 2;
+        let mut told_user_ai_error = false;
 
         while ship_size <= NUM_SHIPS+1 {
 
