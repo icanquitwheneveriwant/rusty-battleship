@@ -2,6 +2,8 @@
 use crate::user::*;
 use crate::computer::*;
 use strum_macros::EnumIter;
+use Orientation::*;
+
 
 
 pub const SIZE: usize = 10;
@@ -10,6 +12,21 @@ pub const NUM_SHIPS: usize = 4;
 #[derive(Debug)]
 struct Board {
     state: [[bool; SIZE]; SIZE],
+    //consider using hash table for convenience
+    //ships: Vec<Ship>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Ship {
+    pub len: usize,
+    pub coord: Coord,
+    pub orient: Orientation,
+}
+
+impl Ship {
+    pub fn uninitialized() -> Self {
+        Self { len: 0, coord: Coord{x: 0, y: 0}, orient: Up }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -17,17 +34,6 @@ pub struct Coord {
     pub x: usize,
     pub y: usize,
 }
-
-/*
-(1, 1)
-Right
-(1, 2)
-Right
-(1, 3)
-Right
-(1, 4)
-Right
-*/
 
 
 impl std::str::FromStr for Coord {
@@ -56,20 +62,18 @@ impl std::str::FromStr for Coord {
 #[derive(Clone, Copy, EnumIter)]
 pub enum Orientation { Up, Down, Left, Right }
 
-use Orientation::*;
-
 impl Coord {
 
     pub fn shift_dist(&self, dir: Orientation, dist: usize) -> Result<Coord, ()> {
         match dir {
             Up => {
                 let diff: i64 = self.y as i64 - dist as i64;
-                if diff >= SIZE as i64 { return Err(()) }
+                if diff < 0 { return Err(()) }
                 Ok(Coord { x: self.x, y: diff as usize })
             },
             Down => {
                 let diff: i64 = self.y as i64 + dist as i64;
-                if diff < 0 { return Err(()) }
+                if diff >= SIZE as i64 { return Err(()) }
                 Ok(Coord { x: self.x, y: diff as usize })
             },
             Left => {
@@ -98,7 +102,8 @@ impl Coord {
 
 
 pub trait Player {
-    fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS];
+    //throughout the code, ships are identified by thier size
+    fn place_ships(&self) -> [Ship; NUM_SHIPS];
     //consider changing name
     fn turn(&mut self) -> Coord;
     fn hit_feedback(&mut self, coord: Coord, hit: bool);
@@ -132,8 +137,8 @@ impl Game {
             status: Initialization,
             p1: Box::new(User::new("Player 1")),
             p2: Box::new(Computer::new("Computer")),
-            p1_board: Board { state: [[false; SIZE]; SIZE] },
-            p2_board: Board { state: [[false; SIZE]; SIZE] },
+            p1_board: Board { state: [[false; SIZE]; SIZE], },//ships: Vec::new(), },
+            p2_board: Board { state: [[false; SIZE]; SIZE], },//ships: Vec::new(), },
 
         }
     }
@@ -143,23 +148,23 @@ impl Game {
         let placements = self.p1.place_ships();
 
         for placement in placements.iter() {
-            let mut coord = placement.1;
+            let mut coord = placement.coord;
 
-            for _ in 0..(placement.0) {
+            for _ in 0..(placement.len) {
                 self.p1_board.state[coord.x][coord.y] = true;
                 //unwrap_or is just for last iteration of the loop
-                coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
+                coord = coord.shift(placement.orient).unwrap_or(Coord{ x: 0, y: 0 });
             }
         }
 
         let placements = self.p2.place_ships();
 
         for placement in placements.iter() {
-            let mut coord = placement.1;
+            let mut coord = placement.coord;
 
-            for _ in 0..(placement.0) {
+            for _ in 0..(placement.len) {
                 self.p2_board.state[coord.x][coord.y] = true;
-                coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
+                coord = coord.shift(placement.orient).unwrap_or(Coord{ x: 0, y: 0 });
             }
         }
 
@@ -192,7 +197,7 @@ impl Game {
 
         //n*(n+1)/2 is sum from 1 to N formula
         //super cool story about how this formula was discovered btw
-        if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2-1 {
+        if player.count_hits() == 10 /*(NUM_SHIPS)*(NUM_SHIPS+1)/2-1*/ {
             self.status = if self.status == P1Turn { P1Win } else { P2Win }
         }
 

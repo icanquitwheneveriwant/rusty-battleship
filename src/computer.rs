@@ -1,7 +1,7 @@
 
 use enum_as_inner::EnumAsInner;
 use crate::user::{ViewState, PlayerView};
-use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
+use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS, Ship};
 use Orientation::*;
 use ViewState::*;
 use BrainState::*;
@@ -82,9 +82,10 @@ impl Computer {
     //there are no more hits along that axis
     pub fn try_new_direction(&mut self) {
 
+        self.iter_state.coord = self.iter_state.initial_hit;
+
         match self.iter_state.dir {
             Up => {
-                self.iter_state.coord = self.iter_state.initial_hit;
                 self.iter_state.dir = Down;
             },
             Down => {
@@ -107,8 +108,9 @@ impl Computer {
 }
 
 impl Player for Computer {
-    fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS] {  
-        let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
+    //debug this later
+    fn place_ships(&self) -> [Ship; NUM_SHIPS] {  
+        let mut placements = [Ship::uninitialized(); NUM_SHIPS];
 
         let mut ship_size = 2;
 
@@ -129,9 +131,9 @@ impl Player for Computer {
 
             if new_view.is_err() { continue; }
 
-            placements[ship_size-2].0 = ship_size;
-            placements[ship_size-2].1 = rand_coord;
-            placements[ship_size-2].2 = rand_orient;
+            placements[ship_size-2].len = ship_size;
+            placements[ship_size-2].coord = rand_coord;
+            placements[ship_size-2].orient = rand_orient;
 
             ship_size += 1;
         }
@@ -179,11 +181,12 @@ impl Player for Computer {
                 let mut next_coord = self.iter_state.coord.shift(self.iter_state.dir);
                 if next_coord.is_ok() && 
                     self.view.state[next_coord.unwrap().x][next_coord.unwrap().y] == Blank {
+                    self.iter_state.coord = next_coord.unwrap();
+                    next_coord.unwrap()
 
+                } else {
                     self.try_new_direction();
                     self.turn()
-                } else {
-                    next_coord.unwrap()
                 }
             },
         }
@@ -199,6 +202,7 @@ impl Player for Computer {
             self.iter_state = IteratingState{ initial_hit: coord, coord: coord, dir: Up, must_be_vertical: false };
        
         } else if self.brain_state == Iterating && !hit {
+
             self.try_new_direction();
         }
     }
