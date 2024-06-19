@@ -4,6 +4,7 @@ mod user;
 mod computer;
 
 use game::*;
+use GameStatus::*;
 use std::fs;
 
 fn main() {
@@ -17,17 +18,19 @@ fn main() {
     println!("Rusty battleships\n");
 
     let mut game = Game::new();
+    let mut num_turns = 0;
+
     loop {
         let status = game.turn();
+        num_turns += 1;
 
-        if status == GameStatus::P1Win {
-            println!("Player 1 wins!");
-            break;
-        } else if status == GameStatus::P2Win {
-            println!("Player 2 wins!");
+        if let Win(player_id) = status {
+            println!("{} wins!", game.get_player_name(player_id));
+
+            //print other winformation
+            //see what I did there ;)
+            println!("Number of turns: {}", num_turns);
             break;
         }
     }
-
 }
-

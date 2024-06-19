@@ -1,5 +1,4 @@
 
-use enum_as_inner::EnumAsInner;
 use crate::user::{ViewState, PlayerView};
 use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS, Ship};
 use Orientation::*;
@@ -178,7 +177,8 @@ impl Player for Computer {
             }
 
             Iterating => {
-                let mut next_coord = self.iter_state.coord.shift(self.iter_state.dir);
+                let next_coord = self.iter_state.coord.shift(self.iter_state.dir);
+
                 if next_coord.is_ok() && 
                     self.view.state[next_coord.unwrap().x][next_coord.unwrap().y] == Blank {
                     self.iter_state.coord = next_coord.unwrap();

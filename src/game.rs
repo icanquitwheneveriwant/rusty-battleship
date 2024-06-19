@@ -3,7 +3,7 @@ use crate::user::*;
 use crate::computer::*;
 use strum_macros::EnumIter;
 use Orientation::*;
-
+use GameStatus::*;
 
 
 pub const SIZE: usize = 10;
@@ -120,19 +120,15 @@ pub struct Game {
     p2_board: Board,
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum GameStatus {
     Initialization,
-    P1Turn,
-    P2Turn,
-    P1Win,
-    P2Win,
+    Turn(usize),
+    Win(usize),
 }
 
-use GameStatus::*;
-
 impl Game {
-    pub fn new() -> Game {
+    pub fn new() -> Self {
         Game {
             status: Initialization,
             p1: Box::new(User::new("Player 1")),
@@ -168,7 +164,7 @@ impl Game {
             }
         }
 
-        self.status = P1Turn
+        self.status = Turn(0)
     }
 
     pub fn turn(&mut self) -> GameStatus {
@@ -176,32 +172,41 @@ impl Game {
         match self.status {
             Initialization => {
                 self.initialize();
-                return self.status;
             },
 
-            P1Win => { return self.status },
-            P2Win => { return self.status },
-            _ => {}
+            Turn(player_id) => {
+
+                let (player, enemy_board) = if player_id == 0 { 
+                    (&mut (*self.p1) ,  &mut self.p2_board) 
+                } else {
+                    (&mut (*self.p2), &mut self.p1_board) 
+                };
+
+
+                let shot_coord = player.turn();
+                println!("{} plays ({}, {})", player.get_name(), shot_coord.x+1, shot_coord.y+1);
+                let was_hit = enemy_board.state[shot_coord.x][shot_coord.y];
+
+                println!("({}, {}) is a {}!", shot_coord.x+1, shot_coord.y+1, if was_hit { "hit" } else { "miss" });
+                
+                player.hit_feedback(shot_coord, was_hit);
+
+                //n*(n+1)/2 is sum from 1 to N formula
+                //super cool story about how this formula was discovered btw
+                if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2-1 {
+                    self.status = Win(player_id);
+                } else {
+                    self.status = Turn((player_id+1)%2);
+                }
+            },
+
+            Win(_) => {},
         }
-            
-        let (player, enemy_board) = if self.status == P1Turn { (&mut (*self.p1) ,  &mut self.p2_board) } 
-                                else { (&mut (*self.p2), &mut self.p1_board) };
 
-        let shot_coord = player.turn();
-        println!("{} plays ({}, {})", player.get_name(), shot_coord.x+1, shot_coord.y+1);
-        let was_hit = enemy_board.state[shot_coord.x][shot_coord.y];
-
-        println!("({}, {}) is a {}!", shot_coord.x+1, shot_coord.y+1, if was_hit { "hit" } else { "miss" });
-        
-        player.hit_feedback(shot_coord, was_hit);
-
-        //n*(n+1)/2 is sum from 1 to N formula
-        //super cool story about how this formula was discovered btw
-        if player.count_hits() == 10 /*(NUM_SHIPS)*(NUM_SHIPS+1)/2-1*/ {
-            self.status = if self.status == P1Turn { P1Win } else { P2Win }
-        }
-
-        self.status = if self.status == P1Turn { P2Turn } else { P1Turn };
         self.status
     }
+
+    pub fn get_player_name(&self, player_id: usize) -> &str {
+        if player_id == 0 { self.p1.get_name() } else { self.p2.get_name() }
+    }  
 }
