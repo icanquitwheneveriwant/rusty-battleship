@@ -128,15 +128,23 @@ pub enum GameStatus {
 }
 
 impl Game {
-    pub fn new() -> Self {
+    pub fn new(p1: Box<dyn Player>, p2: Box<dyn Player>) -> Self {
         Game {
             status: Initialization,
-            p1: Box::new(User::new("Player 1")),
-            p2: Box::new(Computer::new("Computer")),
+            p1:p1,
+            p2: p2,
             p1_board: Board { state: [[false; SIZE]; SIZE], },//ships: Vec::new(), },
             p2_board: Board { state: [[false; SIZE]; SIZE], },//ships: Vec::new(), },
 
         }
+    }
+
+    pub fn new_two_user() -> Self {
+        Game::new(Box::new(User::new("Player 1")), Box::new(Computer::new("Computer")))
+    }
+
+    pub fn new_user_computer() -> Self {
+        Game::new(Box::new(User::new("Player 1")), Box::new(User::new("Player 2")))
     }
 
     fn initialize(&mut self) {
