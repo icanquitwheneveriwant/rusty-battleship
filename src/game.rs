@@ -4,6 +4,7 @@ use crate::computer::*;
 use strum_macros::EnumIter;
 use Orientation::*;
 use GameStatus::*;
+use std::mem;
 
 
 pub const SIZE: usize = 10;
@@ -16,7 +17,7 @@ struct Board {
     //ships: Vec<Ship>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ship {
     pub len: usize,
     pub coord: Coord,
@@ -29,7 +30,7 @@ impl Ship {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Coord {
     pub x: usize,
     pub y: usize,
@@ -110,6 +111,9 @@ pub trait Player {
     //really wish Rust had inheritance!
     fn count_hits(&self) -> usize;
     fn get_name(&self) -> &str;
+    //this literally only exists so that IO is off while
+    //testing for the Computer's turn
+    fn alert_opponent_move(&self, coord: Coord, hit: bool, enemy_name: &str);
 }
 
 pub struct Game {
@@ -120,7 +124,7 @@ pub struct Game {
     p2_board: Board,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum GameStatus {
     Initialization,
     Turn(usize),
@@ -139,11 +143,11 @@ impl Game {
         }
     }
 
-    pub fn new_two_user() -> Self {
+    pub fn new_user_computer() -> Self {
         Game::new(Box::new(User::new("Player 1")), Box::new(Computer::new("Computer")))
     }
 
-    pub fn new_user_computer() -> Self {
+    pub fn new_two_user() -> Self {
         Game::new(Box::new(User::new("Player 1")), Box::new(User::new("Player 2")))
     }
 
@@ -184,19 +188,16 @@ impl Game {
 
             Turn(player_id) => {
 
-                let (player, enemy_board) = if player_id == 0 { 
-                    (&mut (*self.p1) ,  &mut self.p2_board) 
+                //try to eliminate this mess later
+                let (player, enemy, enemy_board) = if player_id == 0 { 
+                    (&mut (*self.p1), &mut (*self.p2), &mut self.p2_board) 
                 } else {
-                    (&mut (*self.p2), &mut self.p1_board) 
+                    (&mut (*self.p2), &mut (*self.p1), &mut self.p1_board) 
                 };
 
-
                 let shot_coord = player.turn();
-                println!("{} plays ({}, {})", player.get_name(), shot_coord.x+1, shot_coord.y+1);
                 let was_hit = enemy_board.state[shot_coord.x][shot_coord.y];
-
-                println!("({}, {}) is a {}!", shot_coord.x+1, shot_coord.y+1, if was_hit { "hit" } else { "miss" });
-                
+                enemy.alert_opponent_move(shot_coord, was_hit, player.get_name());   
                 player.hit_feedback(shot_coord, was_hit);
 
                 //n*(n+1)/2 is sum from 1 to N formula
@@ -217,4 +218,46 @@ impl Game {
     pub fn get_player_name(&self, player_id: usize) -> &str {
         if player_id == 0 { self.p1.get_name() } else { self.p2.get_name() }
     }  
+
+    pub fn check_horiz_adjacency(current: Ship, placements: Vec<Ship>) -> bool {
+
+        for other in placements {
+
+            if other.len==0 || other==current { continue; }
+
+            let (ship_size, coord, orient) = (current.len, current.coord, current.orient);
+
+            let both_horiz = (orient == Left || orient == Right) &&
+                                    (other.orient == Left || other.orient == Right);
+
+            let adjacent_y_axis = coord.y.abs_diff(other.coord.y) == 1;
+
+            let mut start_coord = current.coord;
+            let mut end_coord = start_coord.shift_dist(orient, ship_size-1).unwrap();
+            if start_coord.x > end_coord.x { 
+                mem::swap(&mut start_coord, &mut end_coord); 
+            }
+
+            let mut other_start_coord = other.coord;
+            let mut other_end_coord = other.coord.shift_dist(other.orient, other.len-1).unwrap();
+            if other_start_coord.x > other_end_coord.x { 
+                mem::swap(&mut other_start_coord, &mut other_end_coord); 
+            }
+
+
+            let (larger_span, smaller_span) = if ship_size > other.len { 
+                ((start_coord, end_coord), (other_start_coord, other_end_coord))
+            } else {
+                ((other_start_coord, other_end_coord), (start_coord, end_coord))
+            };
+
+            let x_overlapping = smaller_span.1.x >= larger_span.0.x && smaller_span.0.x <= larger_span.1.x;
+
+            if both_horiz && adjacent_y_axis && x_overlapping {
+                return true;
+            }
+        }
+
+        false
+    }
 }

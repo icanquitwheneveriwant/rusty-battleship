@@ -1,10 +1,10 @@
 
 use ViewState::*;
-use crate::game::{SIZE, Player, Coord, Orientation, Ship, NUM_SHIPS};
+use crate::game::{Game, SIZE, Player, Coord, Orientation, Ship, NUM_SHIPS};
 use Orientation::*;
 use std::io::stdin;
 use std::str::FromStr;
-use std::mem;
+
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum ViewState {
@@ -21,7 +21,8 @@ impl fmt::Display for PlayerView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-        write!(f, "\n  |");
+        //Rust throws a temper tantrum if I don't store the return value
+        _ = write!(f, "\n  |");
 
         for i in 1..=SIZE {
             write!(f, "{}|", i)?;
@@ -88,56 +89,6 @@ impl User {
         }
     }
 }
-
-    /*
-    Test input:
-
-    (1, 1)
-    Right
-    (1, 2)
-    Right
-    (1, 3)
-    Right
-    (1, 4)
-    Right
-    
-
-    Better test input:
-
-b computer:156 (computer.turn)
-    
-(4, 4)
-Left
-(5, 4)
-Down
-(9, 6)
-Up
-(6, 1)
-Right
-
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-(1, 1)
-
-
-computer plays:
-(4, 4) - hit
-(4, 3) - miss
-(4, 5) - miss
-(3, 5) - hit
-
-SHOULD BE (2, 4):
-(5, 4) - hit
-
-(6, 6) - miss
-    */
 
 impl Player for User {
 
@@ -214,61 +165,25 @@ impl Player for User {
             //Best way to compensate for an algorithm edge case
             let coord = coord.unwrap();
 
-            for i in 0..ship_size-2 {
+            let current = Ship{ len: ship_size, coord: coord, orient: orient };
 
+            if Game::check_horiz_adjacency(current, placements.to_vec()) {
+                println!("\nInvalid placement: AI algorithm performs poorly \
+                    when two horizontal ships are placed next to each other");
 
-                let other = placements[i];
-
-                let both_horiz = (orient == Left || orient == Right) &&
-                                        (other.orient == Left || other.orient == Right);
-
-                let adjacent_y_axis = coord.y.abs_diff(other.coord.y) == 1;
-
-                let mut start_coord = coord;
-                let mut end_coord = coord.shift_dist(orient, ship_size-1).unwrap();
-                if start_coord.x > end_coord.x { 
-                    mem::swap(&mut start_coord, &mut end_coord); 
+                if !told_user_ai_error {
+                    println!("\nIt's a perfectly legal move btw,\n \
+                    I just don't feel like adapting the algorithm lmao");
+                    told_user_ai_error = true;
                 }
 
-
-                let mut other_start_coord = other.coord;
-                let mut other_end_coord = other.coord.shift_dist(other.orient, other.len-1).unwrap();
-                if other_start_coord.x > other_end_coord.x { 
-                    mem::swap(&mut other_start_coord, &mut other_end_coord); 
-                }
-
-
-                let (larger_span, smaller_span) = if ship_size > other.len { 
-                    ((start_coord, end_coord), (other_start_coord, other_end_coord))
-                } else {
-                    ((other_start_coord, other_end_coord), (start_coord, end_coord))
-                };
-
-                let x_overlapping = smaller_span.1.x >= larger_span.0.x && smaller_span.0.x <= larger_span.1.x;
-
-                if both_horiz && adjacent_y_axis && x_overlapping {
-                    println!("\nInvalid placement: AI algorithm performs poorly \
-                            when two horizontal ships are placed next to each other");
-
-                    if !told_user_ai_error {
-                        println!("\nIt's a perfectly legal move btw,\n \
-                        I just don't feel like adapting the algorithm lmao");
-                        told_user_ai_error = true;
-                    }
-
-                    valid_flag = false;
-                    break;
-                }
+                continue;
             }
-
-            if !valid_flag { continue; }
 
             placement_view = new_view;
 
             //-2 since ship placements start at size 2
-            placements[ship_size-2].len = ship_size;
-            placements[ship_size-2].coord = coord;
-            placements[ship_size-2].orient = orient;
+            placements[ship_size-2] = current;
 
             ship_size += 1;
         }
@@ -316,6 +231,11 @@ impl Player for User {
 
     fn get_name(&self) -> &str {
         &self.name
+    }
+
+    fn alert_opponent_move(&self, shot_coord: Coord, hit: bool, enemy_name: &str) {
+        println!("{} plays ({}, {})", enemy_name, shot_coord.x+1, shot_coord.y+1);
+        println!("({}, {}) is a {}!", shot_coord.x+1, shot_coord.y+1, if hit { "hit" } else { "miss" });
     }
 }
 

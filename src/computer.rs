@@ -1,6 +1,6 @@
 
 use crate::user::{ViewState, PlayerView};
-use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS, Ship};
+use crate::game::{Game, SIZE, Player, Coord, Orientation, NUM_SHIPS, Ship};
 use Orientation::*;
 use ViewState::*;
 use BrainState::*;
@@ -130,10 +130,14 @@ impl Player for Computer {
 
             if new_view.is_err() { continue; }
 
-            placements[ship_size-2].len = ship_size;
-            placements[ship_size-2].coord = rand_coord;
-            placements[ship_size-2].orient = rand_orient;
+            let current = Ship{ len: ship_size, coord: rand_coord, orient: rand_orient };
 
+            //maybe trim the vec later
+            if Game::check_horiz_adjacency(current, placements.to_vec()) {
+                continue;
+            }
+
+            placements[ship_size-2] = current;
             ship_size += 1;
         }
 
@@ -147,14 +151,6 @@ impl Player for Computer {
 
                 let heat_map = self.gen_heat_map();
 
-                //finds coordinates of max value in heat map
-                /*
-               let (hottest_x, hottest_y) = (0..SIZE)
-                    .flat_map(|x| (0..SIZE).map(move |y| (x, y)))
-                    .max_by_key(|(x, y)| &heat_map[*x][*y]).unwrap();*/
-
-                //----------
-                //let mut hottest_coord = Coord { x: 0, y: 0 };
                 let mut hottest_x = 0;
                 let mut hottest_y = 0;
                 let mut hottest_val = 0;
@@ -168,9 +164,6 @@ impl Player for Computer {
                         }
                     }
                 }
-
-
-                //----------
 
                 //so fucking hot
                 Coord { x: hottest_x, y: hottest_y }
@@ -214,4 +207,7 @@ impl Player for Computer {
     fn get_name(&self) -> &str {
         &self.name
     }
+
+    //only exists for User
+    fn alert_opponent_move(&self, _shot_coord: Coord, _hit: bool, _enemy_name: &str) {}
 }

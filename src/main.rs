@@ -2,6 +2,7 @@
 mod game;
 mod user;
 mod computer;
+mod tests;
 
 use game::*;
 use GameStatus::*;
@@ -30,7 +31,7 @@ fn main() {
 
         let mut input = String::new();
 
-        std::io::stdin().read_line(&mut input).unwrap();
+        stdin().read_line(&mut input).unwrap();
         input = input.trim().to_string();
 
         match input.as_str() {
