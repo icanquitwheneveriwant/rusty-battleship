@@ -2,6 +2,9 @@
 use crate::user::*;
 use crate::computer::*;
 use strum_macros::EnumIter;
+use Orientation::*;
+use GameStatus::*;
+use std::mem;
 
 
 pub const SIZE: usize = 10;
@@ -10,9 +13,24 @@ pub const NUM_SHIPS: usize = 4;
 #[derive(Debug)]
 struct Board {
     state: [[bool; SIZE]; SIZE],
+    //consider using hash table for convenience
+    //ships: Vec<Ship>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Ship {
+    pub len: usize,
+    pub coord: Coord,
+    pub orient: Orientation,
+}
+
+impl Ship {
+    pub fn uninitialized() -> Self {
+        Self { len: 0, coord: Coord{x: 0, y: 0}, orient: Up }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Coord {
     pub x: usize,
     pub y: usize,
@@ -45,20 +63,18 @@ impl std::str::FromStr for Coord {
 #[derive(Clone, Copy, EnumIter, PartialEq, Debug)]
 pub enum Orientation { Up, Down, Left, Right }
 
-use Orientation::*;
-
 impl Coord {
 
     pub fn shift_dist(&self, dir: Orientation, dist: usize) -> Result<Coord, ()> {
         match dir {
             Up => {
                 let diff: i64 = self.y as i64 - dist as i64;
-                if diff >= SIZE as i64 { return Err(()) }
+                if diff < 0 { return Err(()) }
                 Ok(Coord { x: self.x, y: diff as usize })
             },
             Down => {
                 let diff: i64 = self.y as i64 + dist as i64;
-                if diff < 0 { return Err(()) }
+                if diff >= SIZE as i64 { return Err(()) }
                 Ok(Coord { x: self.x, y: diff as usize })
             },
             Left => {
@@ -87,13 +103,17 @@ impl Coord {
 
 
 pub trait Player {
-    fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS];
+    //throughout the code, ships are identified by thier size
+    fn place_ships(&self) -> [Ship; NUM_SHIPS];
     //consider changing name
     fn turn(&mut self) -> Coord;
     fn hit_feedback(&mut self, coord: Coord, hit: bool);
     //really wish Rust had inheritance!
     fn count_hits(&self) -> usize;
     fn get_name(&self) -> &str;
+    //this literally only exists so that IO is off while
+    //testing for the Computer's turn
+    fn alert_opponent_move(&self, coord: Coord, hit: bool, enemy_name: &str);
 }
 
 pub struct Game {
@@ -104,27 +124,31 @@ pub struct Game {
     p2_board: Board,
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum GameStatus {
     Initialization,
-    P1Turn,
-    P2Turn,
-    P1Win,
-    P2Win,
+    Turn(usize),
+    Win(usize),
 }
 
-use GameStatus::*;
-
 impl Game {
-    pub fn new() -> Game {
+    pub fn new(p1: Box<dyn Player>, p2: Box<dyn Player>) -> Self {
         Game {
             status: Initialization,
-            p1: Box::new(User::new("Player 1")),
-            p2: Box::new(Computer::new("Computer")),
-            p1_board: Board { state: [[false; SIZE]; SIZE] },
-            p2_board: Board { state: [[false; SIZE]; SIZE] },
+            p1:p1,
+            p2: p2,
+            p1_board: Board { state: [[false; SIZE]; SIZE], },//ships: Vec::new(), },
+            p2_board: Board { state: [[false; SIZE]; SIZE], },//ships: Vec::new(), },
 
         }
+    }
+
+    pub fn new_user_computer() -> Self {
+        Game::new(Box::new(User::new("Player 1")), Box::new(Computer::new("Computer")))
+    }
+
+    pub fn new_two_user() -> Self {
+        Game::new(Box::new(User::new("Player 1")), Box::new(User::new("Player 2")))
     }
 
     fn initialize(&mut self) {
@@ -132,27 +156,27 @@ impl Game {
         let placements = self.p1.place_ships();
 
         for placement in placements.iter() {
-            let mut coord = placement.1;
+            let mut coord = placement.coord;
 
-            for _ in 0..(placement.0) {
+            for _ in 0..(placement.len) {
                 self.p1_board.state[coord.x][coord.y] = true;
                 //unwrap_or is just for last iteration of the loop
-                coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
+                coord = coord.shift(placement.orient).unwrap_or(Coord{ x: 0, y: 0 });
             }
         }
 
         let placements = self.p2.place_ships();
 
         for placement in placements.iter() {
-            let mut coord = placement.1;
+            let mut coord = placement.coord;
 
-            for _ in 0..(placement.0) {
+            for _ in 0..(placement.len) {
                 self.p2_board.state[coord.x][coord.y] = true;
-                coord = coord.shift(placement.2).unwrap_or(Coord{ x: 0, y: 0 });
+                coord = coord.shift(placement.orient).unwrap_or(Coord{ x: 0, y: 0 });
             }
         }
 
-        self.status = P1Turn
+        self.status = Turn(0)
     }
 
     pub fn turn(&mut self) -> GameStatus {
@@ -160,32 +184,80 @@ impl Game {
         match self.status {
             Initialization => {
                 self.initialize();
-                return self.status;
             },
 
-            P1Win => { return self.status },
-            P2Win => { return self.status },
-            _ => {}
+            Turn(player_id) => {
+
+                //try to eliminate this mess later
+                let (player, enemy, enemy_board) = if player_id == 0 { 
+                    (&mut (*self.p1), &mut (*self.p2), &mut self.p2_board) 
+                } else {
+                    (&mut (*self.p2), &mut (*self.p1), &mut self.p1_board) 
+                };
+
+                let shot_coord = player.turn();
+                let was_hit = enemy_board.state[shot_coord.x][shot_coord.y];
+                enemy.alert_opponent_move(shot_coord, was_hit, player.get_name());   
+                player.hit_feedback(shot_coord, was_hit);
+
+                //n*(n+1)/2 is sum from 1 to N formula
+                //super cool story about how this formula was discovered btw
+                if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2-1 {
+                    self.status = Win(player_id);
+                } else {
+                    self.status = Turn((player_id+1)%2);
+                }
+            },
+
+            Win(_) => {},
         }
-            
-        let (player, enemy_board) = if self.status == P1Turn { (&mut (*self.p1) ,  &mut self.p2_board) } 
-                                else { (&mut (*self.p2), &mut self.p1_board) };
 
-        let shot_coord = player.turn();
-        println!("{} plays ({}, {})", player.get_name(), shot_coord.x+1, shot_coord.y+1);
-        let was_hit = enemy_board.state[shot_coord.x][shot_coord.y];
-
-        println!("({}, {}) is a {}!", shot_coord.x+1, shot_coord.y+1, if was_hit { "hit" } else { "miss" });
-        
-        player.hit_feedback(shot_coord, was_hit);
-
-        //n*(n+1)/2 is sum from 1 to N formula
-        //super cool story about how this formula was discovered btw
-        if player.count_hits() == (NUM_SHIPS)*(NUM_SHIPS+1)/2-1 {
-            self.status = if self.status == P1Turn { P1Win } else { P2Win }
-        }
-
-        self.status = if self.status == P1Turn { P2Turn } else { P1Turn };
         self.status
+    }
+
+    pub fn get_player_name(&self, player_id: usize) -> &str {
+        if player_id == 0 { self.p1.get_name() } else { self.p2.get_name() }
+    }  
+
+    pub fn check_horiz_adjacency(current: Ship, placements: Vec<Ship>) -> bool {
+
+        for other in placements {
+
+            if other.len==0 || other==current { continue; }
+
+            let (ship_size, coord, orient) = (current.len, current.coord, current.orient);
+
+            let both_horiz = (orient == Left || orient == Right) &&
+                                    (other.orient == Left || other.orient == Right);
+
+            let adjacent_y_axis = coord.y.abs_diff(other.coord.y) == 1;
+
+            let mut start_coord = current.coord;
+            let mut end_coord = start_coord.shift_dist(orient, ship_size-1).unwrap();
+            if start_coord.x > end_coord.x { 
+                mem::swap(&mut start_coord, &mut end_coord); 
+            }
+
+            let mut other_start_coord = other.coord;
+            let mut other_end_coord = other.coord.shift_dist(other.orient, other.len-1).unwrap();
+            if other_start_coord.x > other_end_coord.x { 
+                mem::swap(&mut other_start_coord, &mut other_end_coord); 
+            }
+
+
+            let (larger_span, smaller_span) = if ship_size > other.len { 
+                ((start_coord, end_coord), (other_start_coord, other_end_coord))
+            } else {
+                ((other_start_coord, other_end_coord), (start_coord, end_coord))
+            };
+
+            let x_overlapping = smaller_span.1.x >= larger_span.0.x && smaller_span.0.x <= larger_span.1.x;
+
+            if both_horiz && adjacent_y_axis && x_overlapping {
+                return true;
+            }
+        }
+
+        false
     }
 }

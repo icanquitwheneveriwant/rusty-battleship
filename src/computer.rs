@@ -1,7 +1,6 @@
 
-//use enum_as_inner::EnumAsInner;
 use crate::user::{ViewState, PlayerView};
-use crate::game::{SIZE, Player, Coord, Orientation, NUM_SHIPS};
+use crate::game::{Game, SIZE, Player, Coord, Orientation, NUM_SHIPS, Ship};
 use Orientation::*;
 use ViewState::*;
 use BrainState::*;
@@ -93,9 +92,10 @@ impl Computer {
     //there are no more hits along that axis
     pub fn try_new_direction(&mut self) {
 
+        self.iter_state.coord = self.iter_state.initial_hit;
+
         match self.iter_state.dir {
             Up => {
-                self.iter_state.coord = self.iter_state.initial_hit;
                 self.iter_state.dir = Down;
             },
             Down => {
@@ -118,8 +118,9 @@ impl Computer {
 }
 
 impl Player for Computer {
-    fn place_ships(&self) -> [(usize, Coord, Orientation); NUM_SHIPS] {  
-        let mut placements = [(0, Coord { x: 0, y: 0 },  Up); NUM_SHIPS];
+    //debug this later
+    fn place_ships(&self) -> [Ship; NUM_SHIPS] {  
+        let mut placements = [Ship::uninitialized(); NUM_SHIPS];
 
         let mut ship_size = 2;
 
@@ -140,10 +141,14 @@ impl Player for Computer {
 
             if new_view.is_err() { continue; }
 
-            placements[ship_size-2].0 = ship_size;
-            placements[ship_size-2].1 = rand_coord;
-            placements[ship_size-2].2 = rand_orient;
+            let current = Ship{ len: ship_size, coord: rand_coord, orient: rand_orient };
 
+            //maybe trim the vec later
+            if Game::check_horiz_adjacency(current, placements.to_vec()) {
+                continue;
+            }
+
+            placements[ship_size-2] = current;
             ship_size += 1;
         }
 
@@ -159,14 +164,6 @@ impl Player for Computer {
 
                 let heat_map = self.gen_heat_map();
 
-                //finds coordinates of max value in heat map
-                /*
-               let (hottest_x, hottest_y) = (0..SIZE)
-                    .flat_map(|x| (0..SIZE).map(move |y| (x, y)))
-                    .max_by_key(|(x, y)| &heat_map[*x][*y]).unwrap();*/
-
-                //----------
-                //let mut hottest_coord = Coord { x: 0, y: 0 };
                 let mut hottest_x = 0;
                 let mut hottest_y = 0;
                 let mut hottest_val = 0;
@@ -179,7 +176,6 @@ impl Player for Computer {
                         }
                     }
                 }
-                //----------
 
                 //so fucking hot
                 Coord { x: hottest_x, y: hottest_y }
@@ -190,6 +186,7 @@ impl Player for Computer {
 
                 if next_coord.is_ok() && 
                     self.view.state[next_coord.unwrap().x][next_coord.unwrap().y] == Blank {
+                    self.iter_state.coord = next_coord.unwrap();
                     next_coord.unwrap()
 
                 } else {
@@ -210,6 +207,7 @@ impl Player for Computer {
             self.iter_state = IteratingState{ initial_hit: coord, coord: coord, dir: Up, must_be_vertical: false };
        
         } else if self.brain_state == Iterating && !hit {
+
             self.try_new_direction();
         }
     }
@@ -221,6 +219,9 @@ impl Player for Computer {
     fn get_name(&self) -> &str {
         &self.name
     }
+
+    //only exists for User
+    fn alert_opponent_move(&self, _shot_coord: Coord, _hit: bool, _enemy_name: &str) {}
 }
 
 
